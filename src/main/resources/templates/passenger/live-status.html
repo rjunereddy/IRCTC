@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Train Running Status - IRCTC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --irctc-blue:#213d77; --irctc-orange:#fb792b; --irctc-light-bg:#f0f3f6; }
+        body { background-color:var(--irctc-light-bg); font-family:Arial,sans-serif; }
+        .bg-irctc { background-color:var(--irctc-blue) !important; color:white !important; }
+        .btn-irctc { background-color:var(--irctc-orange); color:white; font-weight:bold; border:none; }
+        .btn-irctc:hover { background-color:#e56a20; color:white; }
+        .text-irctc { color:var(--irctc-blue) !important; }
+        .irctc-logo { font-weight:800; letter-spacing:1px; font-size:1.5rem; }
+        .list-group-item.active { background-color:var(--irctc-blue) !important; border-color:var(--irctc-blue) !important; }
+
+        /* Timeline styling */
+        .timeline { position:relative; padding-left:30px; margin-top:20px; }
+        .timeline::before { content:''; position:absolute; left:11px; top:0; bottom:0; width:4px; background:#e0e0e0; }
+        .timeline-step { position:relative; margin-bottom:24px; }
+        .timeline-step .dot { position:absolute; left:-30px; top:2px; width:24px; height:24px; border-radius:50%; background:#e0e0e0; border:4px solid white; display:flex; align-items:center; justify-content:center; }
+        .timeline-step.crossed .dot { background:#28a745; box-shadow:0 0 0 3px rgba(40,167,69,0.2); }
+        .timeline-step.current .dot { background:var(--irctc-orange); box-shadow:0 0 0 4px rgba(251,121,43,0.3); animation:pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform:scale(1); } 50% { transform:scale(1.2); } 100% { transform:scale(1); } }
+        .badge-ontime { background-color:#28a745; }
+        .badge-delayed { background-color:#ff9800; }
+        .speedometer-card { background:linear-gradient(135deg, #213d77 0%, #172a53 100%); color:white; border-radius:12px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-irctc shadow-sm">
+        <div class="container">
+            <a class="navbar-brand irctc-logo" href="/"><i class="fas fa-train"></i> IRCTC NGeT</a>
+            <div class="ms-auto d-flex align-items-center gap-3">
+                <a href="/passenger/dashboard" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                    <i class="fas fa-arrow-left me-1"></i> Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 mb-4">
+                <div class="list-group shadow-sm" style="font-size:13px">
+                    <a href="/passenger/dashboard"       class="list-group-item list-group-item-action"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
+                    <a href="/passenger/search"          class="list-group-item list-group-item-action"><i class="fas fa-search me-2"></i>Book Ticket</a>
+                    <a href="/passenger/pnr-status"      class="list-group-item list-group-item-action"><i class="fas fa-qrcode me-2"></i>PNR Status</a>
+                    <a href="/passenger/live-status"     class="list-group-item list-group-item-action active"><i class="fas fa-broadcast-tower me-2"></i>Live Train Status</a>
+                    <a href="/passenger/booking-history" class="list-group-item list-group-item-action"><i class="fas fa-history me-2"></i>Booking History</a>
+                    <a href="/passenger/wallet"          class="list-group-item list-group-item-action"><i class="fas fa-wallet me-2"></i>My Wallet</a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Select Train Bar -->
+                <div class="card shadow-sm border-0 mb-4" style="border-radius:12px">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold text-irctc mb-3"><i class="fas fa-satellite-dish me-2 text-warning"></i>Live Train GPS Tracker</h5>
+                        <form method="get" id="trackForm" class="row g-2 align-items-center">
+                            <div class="col-md-9">
+                                <select class="form-select" id="trainSelect" onchange="if(this.value) window.location.href='/passenger/live-status/' + this.value">
+                                    <option value="">-- Choose a train to track --</option>
+                                    <option th:each="t : ${trains}" 
+                                            th:value="${t.trainNo}" 
+                                            th:selected="${selectedTrainNo == t.trainNo}"
+                                            th:text="${t.trainNo + ' - ' + t.trainName + ' (' + t.sourceStation.stationCode + ' -> ' + t.destinationStation.stationCode + ')'}">
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-irctc w-100" onclick="var v = document.getElementById('trainSelect').value; if(v) window.location.href='/passenger/live-status/' + v;">
+                                    <i class="fas fa-location-arrow me-1"></i> Track Live
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- If Tracking Data is Present -->
+                <div th:if="${tracking != null}">
+                    <!-- Train Summary Header -->
+                    <div class="card shadow-sm border-0 mb-4" style="border-radius:12px">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                <div>
+                                    <h4 class="fw-bold mb-1" th:text="${tracking.trainName + ' (' + tracking.trainNo + ')'}">Train Name</h4>
+                                    <div class="text-muted small">
+                                        <i class="fas fa-map-marker-alt text-danger me-1"></i> <span th:text="${tracking.sourceStation}">Origin</span>
+                                        <i class="fas fa-long-arrow-alt-right mx-2 text-primary"></i>
+                                        <i class="fas fa-flag-checkered text-success me-1"></i> <span th:text="${tracking.destinationStation}">Destination</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="badge rounded-pill fs-6 px-3 py-2 text-white"
+                                          th:classappend="${tracking.statusCategory == 'ON_TIME' ? 'badge-ontime' : (tracking.statusCategory == 'DELAYED' ? 'badge-delayed' : 'bg-secondary')}"
+                                          th:text="${tracking.statusBadgeText}">Status
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Live Progress Bar -->
+                            <div class="my-4">
+                                <div class="d-flex justify-content-between small text-muted mb-1">
+                                    <span>Departure: <strong th:text="${tracking.scheduledDeparture}">08:00</strong></span>
+                                    <span>Journey Progress: <strong th:text="${tracking.progressPercent + '%'}">45%</strong></span>
+                                    <span>Arrival: <strong th:text="${tracking.scheduledArrival}">20:00</strong></span>
+                                </div>
+                                <div class="progress" style="height:12px; border-radius:6px">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                         role="progressbar" 
+                                         th:style="'width: ' + ${tracking.progressPercent} + '%;'">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Live Metric Highlights -->
+                            <div class="row g-3 text-center">
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-light rounded-3">
+                                        <div class="small text-muted text-uppercase">Current Location</div>
+                                        <div class="fw-bold fs-6 text-irctc mt-1" th:text="${tracking.currentStationName}">Nagpur</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-light rounded-3">
+                                        <div class="small text-muted text-uppercase">Next Stop</div>
+                                        <div class="fw-bold fs-6 text-primary mt-1" th:text="${tracking.nextStationName}">Bhopal</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 bg-light rounded-3">
+                                        <div class="small text-muted text-uppercase">Cruising Speed</div>
+                                        <div class="fw-bold fs-6 text-success mt-1">
+                                            <i class="fas fa-tachometer-alt me-1"></i><span th:text="${tracking.speedKmph + ' km/h'}">110 km/h</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Route Stops Timeline -->
+                    <div class="card shadow-sm border-0 mb-4" style="border-radius:12px">
+                        <div class="card-header bg-white py-3 border-0">
+                            <h6 class="fw-bold text-irctc mb-0"><i class="fas fa-list-ol me-2"></i>Route Stops & Estimated Timings</h6>
+                        </div>
+                        <div class="card-body p-4 pt-0">
+                            <div class="timeline" th:if="${tracking.stops != null and !tracking.stops.isEmpty()}">
+                                <div th:each="stop, iter : ${tracking.stops}" 
+                                     class="timeline-step"
+                                     th:classappend="${stop.crossed ? 'crossed' : (iter.index == 0 ? 'current' : '')}">
+                                    <div class="dot">
+                                        <i th:if="${stop.crossed}" class="fas fa-check text-white" style="font-size:10px"></i>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong th:text="${stop.stationName + ' (' + stop.stationCode + ')'}">Station Name</strong>
+                                            <div class="small text-muted" th:text="${'Distance: ' + stop.distanceKm + ' km'}">0 km</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="small">Arr: <strong th:text="${stop.arrivalTime}">08:00</strong> | Dep: <strong th:text="${stop.departureTime}">08:10</strong></div>
+                                            <span th:if="${stop.crossed}" class="badge bg-success-subtle text-success small">Crossed</span>
+                                            <span th:if="${!stop.crossed}" class="badge bg-light text-muted small">Upcoming</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty prompt -->
+                <div th:if="${tracking == null}" class="text-center py-5 bg-white rounded-3 shadow-sm">
+                    <i class="fas fa-train text-muted fa-3x mb-3"></i>
+                    <h5 class="fw-bold text-muted">Select a train above to view its live running status</h5>
+                    <p class="text-muted small">Track route progress, current speed, delay updates, and intermediate station timings in real time.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

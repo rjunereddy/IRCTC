@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Trains - IRCTC Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --admin-red: #c0392b; }
+        body { background: #f4f6f8; font-family: Arial, sans-serif; }
+        .bg-admin { background-color: var(--admin-red) !important; }
+        .sidebar-link.active { background: var(--admin-red) !important; color: #fff !important; border-color: var(--admin-red) !important; }
+        .tatkal-banner { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .tatkal-status-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
+        .badge-tatkal-on  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .badge-tatkal-off { background: #e2e3e5; color: #6c757d; border: 1px solid #d6d8db; }
+        .table th { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #666; }
+        .table td { vertical-align: middle; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-admin shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold" href="/"><i class="fas fa-train me-2"></i>IRCTC Admin</a>
+            <div class="ms-auto">
+                <a href="/auth/logout" class="btn btn-outline-light btn-sm rounded-pill">
+                    <i class="fas fa-sign-out-alt me-1"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4 px-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 mb-4">
+                <div class="list-group shadow-sm" style="font-size:13px">
+                    <a href="/admin/dashboard"    class="list-group-item list-group-item-action sidebar-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
+                    <a href="/admin/trains"        class="list-group-item list-group-item-action sidebar-link active"><i class="fas fa-train me-2"></i>Manage Trains</a>
+                    <a href="/admin/stations"      class="list-group-item list-group-item-action sidebar-link"><i class="fas fa-map-marker-alt me-2"></i>Stations</a>
+                    <a href="/admin/reports"       class="list-group-item list-group-item-action sidebar-link"><i class="fas fa-chart-bar me-2"></i>Reports</a>
+                    <a href="/admin/users"         class="list-group-item list-group-item-action sidebar-link"><i class="fas fa-users me-2"></i>Users</a>
+                    <a href="/admin/refunds"       class="list-group-item list-group-item-action sidebar-link"><i class="fas fa-undo me-2"></i>Refunds</a>
+                </div>
+            </div>
+
+            <!-- Main -->
+            <div class="col-md-10">
+                <!-- Alerts -->
+                <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i><span th:text="${message}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i><span th:text="${error}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <!-- ══ TATKAL CONTROL BANNER ══ -->
+                <div class="tatkal-banner d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div>
+                        <h5 class="mb-1"><i class="fas fa-bolt me-2"></i> Tatkal Quota Control</h5>
+                        <div style="font-size:13px; opacity:.9">
+                            Date range: <strong th:text="${tomorrowDate}">tomorrow</strong> &nbsp;|&nbsp;
+                            Currently enabled: <strong th:text="${tatkalEnabledTrains != null ? tatkalEnabledTrains.size() : 0}">0</strong> trains
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <!-- Enable ALL button -->
+                        <form method="post" th:action="@{/admin/trains/tatkal/enable-all}" style="display:inline">
+                            <button type="submit" class="btn btn-light fw-bold shadow-sm px-4">
+                                <i class="fas fa-bolt text-warning me-1"></i> Enable Tatkal for ALL Trains
+                            </button>
+                        </form>
+                        <!-- Disable ALL button -->
+                        <form method="post" th:action="@{/admin/trains/tatkal/disable-all}" style="display:inline">
+                            <button type="submit" class="btn btn-dark fw-bold shadow-sm px-4">
+                                <i class="fas fa-times me-1"></i> Disable Tatkal for All
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Trains Table -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0 text-dark"><i class="fas fa-train me-2"></i>All Trains
+                            <span class="badge bg-secondary ms-2" th:text="${trains != null ? trains.size() : 0}">0</span>
+                        </h5>
+                        <a href="/admin/trains/add" class="btn btn-danger btn-sm rounded-pill">
+                            <i class="fas fa-plus me-1"></i> Add New Train
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Train No</th>
+                                        <th>Train Name</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Dep</th>
+                                        <th>Arr</th>
+                                        <th>Seats</th>
+                                        <th>Classes</th>
+                                        <th>Tatkal</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="train, iter : ${trains}">
+                                        <td class="text-muted" th:text="${iter.count}">1</td>
+                                        <td><span class="badge bg-dark" th:text="${train.trainNo}">12951</span></td>
+                                        <td class="fw-bold" th:text="${train.trainName}">Rajdhani</td>
+                                        <td th:text="${train.sourceStation?.stationCode}">NDLS</td>
+                                        <td th:text="${train.destinationStation?.stationCode}">BCT</td>
+                                        <td th:text="${train.departureTime}">17:00</td>
+                                        <td th:text="${train.arrivalTime}">08:35</td>
+                                        <td th:text="${train.totalSeats}">550</td>
+                                        <td>
+                                            <span th:each="cls : ${train.classes}"
+                                                  class="badge bg-light text-dark border me-1" style="font-size:10px"
+                                                  th:text="${cls.name()}">SL</span>
+                                        </td>
+                                        <!-- Tatkal status only (no per-train button) -->
+                                        <td>
+                                            <span th:if="${tatkalEnabledTrains != null and tatkalEnabledTrains.contains(train.trainNo)}"
+                                                  class="tatkal-status-badge badge-tatkal-on">
+                                                <i class="fas fa-bolt"></i> ON
+                                            </span>
+                                            <span th:unless="${tatkalEnabledTrains != null and tatkalEnabledTrains.contains(train.trainNo)}"
+                                                  class="tatkal-status-badge badge-tatkal-off">OFF</span>
+                                        </td>
+                                        <td>
+                                            <a th:href="@{/admin/trains/view/{no}(no=${train.trainNo})}"
+                                               class="btn btn-outline-primary btn-sm me-1"
+                                               title="View Route Stops & Halts">
+                                                <i class="fas fa-route"></i>
+                                            </a>
+                                            <form method="post"
+                                                  th:action="@{/admin/trains/delete/{no}(no=${train.trainNo})}"
+                                                  style="display:inline"
+                                                  onsubmit="return confirm('Delete train ' + this.dataset.name + '?')"
+                                                  th:data-name="${train.trainName}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                        title="Delete Train">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    <tr th:if="${trains == null or trains.isEmpty()}">
+                                        <td colspan="11" class="text-center text-muted py-4">No trains found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

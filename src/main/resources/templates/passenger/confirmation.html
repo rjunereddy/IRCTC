@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Confirmed - IRCTC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --irctc-blue:#213d77; --irctc-orange:#fb792b; --irctc-light-bg:#f0f3f6; }
+        body { background-color:var(--irctc-light-bg); font-family:'Arial',sans-serif; }
+        .bg-irctc { background-color:var(--irctc-blue) !important; color:white !important; }
+        .btn-irctc { background-color:var(--irctc-orange); color:white; font-weight:bold; border:none; }
+        .btn-irctc:hover { background-color:#e56a20; color:white; }
+        .text-irctc { color:var(--irctc-blue) !important; }
+        .irctc-logo { font-weight:800; letter-spacing:1px; font-size:1.5rem; }
+        @media print {
+            .no-print { display:none !important; }
+            body { background-color:white; }
+            .card { border:none !important; box-shadow:none !important; }
+        }
+        /* PNR hero */
+        .pnr-hero { background:linear-gradient(135deg,#213d77,#0d2247); color:white; border-radius:12px; padding:20px 28px; }
+        .pnr-hero .pnr-num { font-size:2.2rem; font-weight:900; letter-spacing:2px; }
+        /* Fare breakdown */
+        .fare-row { display:flex; justify-content:space-between; padding:7px 0; font-size:13px; border-bottom:1px dashed #e9ecef; }
+        .fare-row:last-child { border:none; }
+        /* Status badges */
+        .status-cnf { background:#1a6e32; }
+        .status-rac { background:#856404; }
+        .status-wl  { background:#555; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-irctc shadow-sm no-print">
+        <div class="container">
+            <a class="navbar-brand irctc-logo" href="/"><i class="fas fa-train"></i> IRCTC NGeT</a>
+            <div class="ms-auto">
+                <a href="/auth/logout" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+
+                <!-- Success Banner -->
+                <div class="alert border-0 mb-3 d-flex align-items-center gap-3"
+                     style="background:#d4edda;border-left:5px solid #28a745 !important">
+                    <i class="fas fa-check-circle text-success" style="font-size:2rem"></i>
+                    <div>
+                        <div class="fw-bold fs-5 text-success">Booking Successful!</div>
+                        <div class="text-muted small">Your ticket has been booked. Save your PNR number for reference.</div>
+                    </div>
+                </div>
+
+                <!-- PNR Hero -->
+                <div class="pnr-hero mb-3 no-print">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px">PNR Number</div>
+                            <div class="pnr-num" th:text="${ticket.pnr}">1234567890</div>
+                            <div class="small opacity-75 mt-1">Keep this safe — use it to check PNR status anytime</div>
+                        </div>
+                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                            <div style="font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:1px">Booking Status</div>
+                            <div class="mt-2">
+                                <span th:if="${ticket.status?.name() == 'CONFIRMED'}"
+                                      class="badge fs-5 px-4 py-2 rounded-pill"
+                                      style="background:#28a745">
+                                    <i class="fas fa-check-circle me-2"></i>CONFIRMED
+                                </span>
+                                <span th:if="${ticket.status?.name() == 'RAC'}"
+                                      class="badge fs-5 px-4 py-2 rounded-pill"
+                                      style="background:#ffc107;color:#333">
+                                    <i class="fas fa-clock me-2"></i>RAC <span th:text="${ticket.racNumber}"></span>
+                                </span>
+                                <span th:if="${ticket.status?.name() == 'WAITING'}"
+                                      class="badge fs-5 px-4 py-2 rounded-pill"
+                                      style="background:#6c757d">
+                                    <i class="fas fa-hourglass-half me-2"></i>WL <span th:text="${ticket.waitlistNumber}"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <!-- Left: Train + Passengers -->
+                    <div class="col-lg-7">
+
+                        <!-- Train Details -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-irctc text-white"><h6 class="mb-0"><i class="fas fa-train me-2"></i>Train Details</h6></div>
+                            <div class="card-body">
+                                <div class="fw-bold fs-5 text-irctc" th:text="${ticket.train?.trainNo + ' - ' + ticket.train?.trainName}">12301 Rajdhani</div>
+
+                                <!-- Route arrow -->
+                                <div class="d-flex align-items-center gap-3 my-3">
+                                    <div>
+                                        <div class="fw-bold fs-5" th:text="${ticket.fromStation?.stationCode}">NDLS</div>
+                                        <div class="small text-muted" th:text="${ticket.fromStation?.stationName}">New Delhi</div>
+                                        <div class="text-danger fw-bold small" th:text="${ticket.train?.departureTime}">16:55</div>
+                                    </div>
+                                    <div class="flex-grow-1 text-center">
+                                        <i class="fas fa-long-arrow-alt-right fa-2x text-muted"></i>
+                                        <div class="small text-muted fw-bold" th:text="${ticket.classType?.name()}">SL</div>
+                                        <div class="small fw-bold text-primary" th:if="${ticket.distanceKm != null}"><span th:text="${ticket.distanceKm}">570</span> KM</div>
+                                        <div class="small text-muted" th:text="${ticket.quotaType?.name()}">GENERAL</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold fs-5" th:text="${ticket.toStation?.stationCode}">HWH</div>
+                                        <div class="small text-muted" th:text="${ticket.toStation?.stationName}">Howrah</div>
+                                        <div class="text-success fw-bold small" th:text="${ticket.train?.arrivalTime}">09:55</div>
+                                    </div>
+                                </div>
+
+                                <div class="row text-center" style="font-size:12px;border-top:1px dashed #ddd;padding-top:10px">
+                                    <div class="col">
+                                        <div class="text-muted">Journey Date</div>
+                                        <div class="fw-bold" th:text="${ticket.journeyDate}">—</div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="text-muted">Booking Date</div>
+                                        <div class="fw-bold" th:text="${ticket.bookingDate}">—</div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="text-muted">Transaction ID</div>
+                                        <div class="fw-bold" style="word-break:break-all;font-size:10px" th:text="${ticket.transactionId}">—</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IRCTC e-Catering Food Coupon & Meal Voucher (Only if food ordered) -->
+                        <div class="card border-0 shadow-sm mb-3" th:if="${ticket.hasFoodOrder()}" style="border-left: 5px solid #e65100 !important; background: #fffcf8;">
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #e65100, #ff6f00); color:white;">
+                                <h6 class="mb-0 fw-bold"><i class="fas fa-utensils me-2"></i>IRCTC e-Catering Meal Voucher & Food Coupon</h6>
+                                <span class="badge bg-light text-dark fw-bold">MEAL BOOKED</span>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 p-2 rounded" style="background:#fff3e0; border: 1px dashed #ff9800;">
+                                    <div>
+                                        <small class="text-muted text-uppercase fw-bold" style="font-size:10px;">Food Coupon Code</small>
+                                        <div class="fs-5 fw-bold text-danger font-monospace" th:text="${ticket.foodCouponCode}">ECAT-2611211260-4921</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted text-uppercase fw-bold" style="font-size:10px;">Catering Total (Paid)</small>
+                                        <div class="fs-5 fw-bold text-success" th:text="'₹' + ${ticket.foodTotal}">₹240.00</div>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted fw-bold">ORDERED MENU ITEMS:</small>
+                                    <div class="p-2 bg-white rounded border text-dark fw-semibold" th:text="${ticket.foodItems}">Veg Standard Thali (1), Rail Neer 1L (2)</div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 text-muted small mt-2" style="font-size:11px;">
+                                    <i class="fas fa-concierge-bell text-warning fs-6"></i>
+                                    <span>Hot meals will be served directly at your berth/seat by the Pantry Car Attendant. Quote coupon code or show ticket on train. Helpline: 1323.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Passenger Details -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header bg-irctc text-white"><h6 class="mb-0"><i class="fas fa-users me-2"></i>Passenger Details</h6></div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0" style="font-size:13px">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th><th>Name</th><th>Age</th><th>Gender</th>
+                                                <th th:if="${ticket.status?.name() == 'CONFIRMED'}">Coach/Seat</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr th:each="p, stat : ${ticket.allPassengers}">
+                                                <td class="text-muted" th:text="${stat.count}"></td>
+                                                <td class="fw-bold" th:text="${p.passengerName}"></td>
+                                                <td th:text="${p.age}"></td>
+                                                <td th:text="${p.gender}"></td>
+                                                <td th:if="${ticket.status?.name() == 'CONFIRMED'}">
+                                                    <span class="badge bg-dark" th:text="${p.berthAllotted}">B2-45</span>
+                                                </td>
+                                                <td>
+                                                    <span th:if="${ticket.status?.name() == 'CONFIRMED'}" class="badge bg-success">CNF</span>
+                                                    <span th:if="${ticket.status?.name() == 'RAC'}"       class="badge bg-warning text-dark" th:text="'RAC ' + ${ticket.racNumber}">RAC</span>
+                                                    <span th:if="${ticket.status?.name() == 'WAITING'}"   class="badge bg-secondary" th:text="'WL ' + ${ticket.waitlistNumber}">WL</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Fare Breakdown -->
+                    <div class="col-lg-5">
+                        <!-- Fare Breakdown -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-header" style="background:var(--irctc-orange);color:white">
+                                <h6 class="mb-0"><i class="fas fa-receipt me-2"></i>Fare Breakdown</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="fare-row">
+                                    <span class="text-muted">Base Fare (Ticket)</span>
+                                    <span class="fw-bold">₹<span th:text="${ticket.baseFare}">0</span></span>
+                                </div>
+                                <div class="fare-row" th:if="${ticket.gstAmount > 0}">
+                                    <span class="text-muted">GST (5%)</span>
+                                    <span>₹<span th:text="${ticket.gstAmount}">0</span></span>
+                                </div>
+                                <div class="fare-row" th:if="${ticket.foodTotal > 0}">
+                                    <span class="text-muted">E-Catering (Food)</span>
+                                    <span class="text-success">+₹<span th:text="${ticket.foodTotal}">0</span></span>
+                                </div>
+                                <div class="mt-1 small text-muted" th:if="${ticket.foodItems != null}">
+                                    <i class="fas fa-utensils me-1"></i> <span th:text="${ticket.foodItems}">Items list</span>
+                                </div>
+                                <div class="fare-row">
+                                    <span class="text-muted">Convenience Fee</span>
+                                    <span>₹<span th:text="${ticket.serviceFee}">15.00</span></span>
+                                </div>
+                                <div class="fare-row" th:if="${ticket.insuranceAmount > 0}">
+                                    <span class="text-muted">Travel Insurance</span>
+                                    <span>₹<span th:text="${ticket.insuranceAmount}">0.35</span></span>
+                                </div>
+                                <div class="fare-row">
+                                    <span class="text-muted">Passengers</span>
+                                    <span th:text="${ticket.allPassengers?.size() + ' pax'}">1 pax</span>
+                                </div>
+                                <div class="fare-row">
+                                    <span class="text-muted">Class &amp; Quota</span>
+                                    <span th:text="${ticket.classType?.name() + ' / ' + ticket.quotaType?.name()}">SL</span>
+                                </div>
+                                <hr class="my-2">
+                                <div class="d-flex justify-content-between fw-bold fs-5">
+                                    <span class="text-irctc">Total Paid</span>
+                                    <span class="text-irctc">₹<span th:text="${ticket.totalFare}">0</span></span>
+                                </div>
+                                <div class="mt-2 small text-muted text-center">
+                                    <i class="fas fa-shield-alt text-success"></i> Payment via <span th:text="${ticket.payment?.paymentMethod ?: 'Gateway'}"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="card border-0 shadow-sm mb-3 no-print">
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <a th:href="@{/passenger/ticket/download/{pnr}(pnr=${ticket.pnr})}" class="btn btn-success rounded-pill">
+                                        <i class="fas fa-download me-2"></i>Download E-Ticket (PDF)
+                                    </a>
+                                    <button onclick="window.print()" class="btn btn-irctc rounded-pill">
+                                        <i class="fas fa-print me-2"></i>Print Ticket
+                                    </button>
+                                    <a th:href="@{/passenger/pnr-status(pnr=${ticket.pnr})}" class="btn btn-outline-primary rounded-pill">
+                                        <i class="fas fa-search me-2"></i>Check PNR Status
+                                    </a>
+                                    <form th:if="${ticket.canBeCancelled()}" method="post"
+                                          th:action="@{/passenger/cancel/{pnr}(pnr=${ticket.pnr})}">
+                                        <button type="submit" class="btn btn-outline-danger w-100 rounded-pill">
+                                            <i class="fas fa-times me-2"></i>Cancel Ticket
+                                        </button>
+                                    </form>
+                                    <a href="/passenger/dashboard" class="btn btn-outline-secondary rounded-pill">
+                                        <i class="fas fa-home me-2"></i>Back to Dashboard
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IRCTC Notes -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light" style="font-size:12px;font-weight:700">
+                                <i class="fas fa-info-circle text-warning me-1"></i>Important Information
+                            </div>
+                            <div class="card-body" style="font-size:11px;color:#555">
+                                <ul class="mb-0 ps-3">
+                                    <li>Carry valid photo ID proof during travel.</li>
+                                    <li>PNR must be checked 24 hrs before departure for final chart preparation.</li>
+                                    <li>RAC/WL passengers may get confirmed after chart preparation.</li>
+                                    <li>Cancellation charges apply. Refund will be processed to original payment source within 5-7 working days.</li>
+                                    <li>Travel insurance claim can be filed at <strong>irtcindia.com/insurance</strong>.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

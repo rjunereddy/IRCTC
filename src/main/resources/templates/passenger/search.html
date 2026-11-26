@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Trains - IRCTC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --irctc-blue: #213d77;
+            --irctc-orange: #fb792b;
+            --irctc-light-bg: #f0f3f6;
+        }
+        body { background-color: var(--irctc-light-bg); font-family: 'Arial', sans-serif; }
+        .bg-irctc { background-color: var(--irctc-blue) !important; color: white !important; }
+        .btn-irctc { background-color: var(--irctc-orange); color: white; font-weight: bold; border: none; }
+        .btn-irctc:hover { background-color: #e56a20; color: white; }
+        .text-irctc { color: var(--irctc-blue) !important; }
+        .list-group-item.active {
+            background-color: var(--irctc-blue) !important;
+            border-color: var(--irctc-blue) !important;
+        }
+        .irctc-logo { font-weight: 800; letter-spacing: 1px; font-size: 1.5rem; }
+
+        /* Train card */
+        .train-card {
+            border: 1px solid #dee2e6;
+            border-left: 5px solid var(--irctc-blue);
+            border-radius: 6px;
+            background: #fff;
+            margin-bottom: 12px;
+            transition: box-shadow 0.2s;
+        }
+        .train-card:hover { box-shadow: 0 4px 16px rgba(33,61,119,.15); }
+        .train-header { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+        .train-availability { padding: 0; }
+
+        /* Availability badge pill styles (IRCTC-style) */
+        .avail-cell { text-align: center; padding: 8px 4px; border-right: 1px solid #f0f0f0; }
+        .avail-cell:last-child { border-right: none; }
+        .avail-class-label { font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .avail-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .avail-badge:hover { opacity: 0.85; }
+        .avail-confirmed { background: #e6f4ea; color: #1a6e32; border: 1px solid #a8d5b5; }
+        .avail-rac       { background: #fff3cd; color: #7a5500; border: 1px solid #ffc107; }
+        .avail-wl        { background: #fff0e6; color: #9e4a0e; border: 1px solid #fb792b; }
+        .avail-regret    { background: #fce8e8; color: #a50000; border: 1px solid #e88; }
+        .fare-badge      { font-size: 12px; color: #333; font-weight: 600; }
+
+        /* Running days dots */
+        .day-dot { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; margin: 1px; }
+        .day-active   { background: #213d77; color: white; }
+        .day-inactive { background: #e5e5e5; color: #aaa; }
+
+        /* Book button in avail cell */
+        .btn-book-class {
+            font-size: 10px; padding: 2px 8px; margin-top: 4px;
+            border-radius: 3px; border: none;
+            background: var(--irctc-orange); color: white; font-weight: 700;
+            display: block; width: 100%; cursor: pointer;
+        }
+        .btn-book-class:hover { background: #e56a20; }
+        .btn-book-class:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Search card */
+        .search-card { border: none; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.10); }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-irctc shadow-sm">
+        <div class="container">
+            <a class="navbar-brand irctc-logo" href="/">
+                <i class="fas fa-train"></i> IRCTC NGeT
+            </a>
+            <div class="ms-auto">
+                <a href="/auth/logout" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 mb-4">
+                <div class="list-group shadow-sm" style="font-size:13px">
+                    <a href="/passenger/dashboard" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                    <a href="/passenger/search" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-search me-2"></i> Book Ticket
+                    </a>
+                    <a href="/passenger/pnr-status" class="list-group-item list-group-item-action">
+                        <i class="fas fa-qrcode me-2"></i> PNR Status
+                    </a>
+                    <a href="/passenger/live-status" class="list-group-item list-group-item-action">
+                        <i class="fas fa-broadcast-tower me-2"></i> Live Train Status
+                    </a>
+                    <a href="/passenger/booking-history" class="list-group-item list-group-item-action">
+                        <i class="fas fa-history me-2"></i> Booking History
+                    </a>
+                    <a href="/passenger/wallet" class="list-group-item list-group-item-action">
+                        <i class="fas fa-wallet me-2"></i> My Wallet
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main -->
+            <div class="col-md-10">
+                <!-- Search Form -->
+                <div class="card search-card mb-4">
+                    <div class="card-header bg-irctc text-white">
+                        <h5 class="mb-0"><i class="fas fa-search me-2"></i> Search Trains</h5>
+                    </div>
+                    <div class="card-body bg-white p-4">
+                        <form method="post" action="/passenger/search">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4 position-relative">
+                                    <label class="form-label fw-bold text-irctc small">FROM Station</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-map-marker-alt text-muted"></i></span>
+                                        <input type="text" id="source-search" class="form-control" placeholder="e.g. Mumbai, Delhi..." autocomplete="off" required>
+                                    </div>
+                                    <input type="hidden" name="source" id="source-code" th:value="${source}">
+                                    <div id="source-results" class="list-group position-absolute w-100 shadow" style="z-index:1050;max-height:220px;overflow-y:auto;display:none;top:100%;left:0"></div>
+                                </div>
+                                <div class="col-md-1 text-center pt-4">
+                                    <button type="button" id="swap-btn" class="btn btn-light border" title="Swap Stations">
+                                        <i class="fas fa-exchange-alt text-muted"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-4 position-relative">
+                                    <label class="form-label fw-bold text-irctc small">TO Station</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-map-marker text-muted"></i></span>
+                                        <input type="text" id="dest-search" class="form-control" placeholder="e.g. Chennai, Bangalore..." autocomplete="off" required>
+                                    </div>
+                                    <input type="hidden" name="destination" id="dest-code" th:value="${destination}">
+                                    <div id="dest-results" class="list-group position-absolute w-100 shadow" style="z-index:1050;max-height:220px;overflow-y:auto;display:none;top:100%;left:0"></div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fw-bold text-irctc small">Journey Date</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="fas fa-calendar-alt text-muted"></i></span>
+                                        <input type="date" name="date" class="form-control" th:value="${date}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-1">
+                                    <button type="submit" class="btn btn-irctc w-100 fw-bold">
+                                        <i class="fas fa-search"></i> Search
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div th:if="${trains != null and #lists.size(trains) > 0}" class="mb-2 d-flex align-items-center gap-3 flex-wrap" style="font-size:12px">
+                    <span class="fw-bold text-irctc"><i class="fas fa-info-circle"></i> Availability Legend:</span>
+                    <span><span class="avail-badge avail-confirmed">AVAILABLE-N</span> &nbsp;Confirmed seats</span>
+                    <span><span class="avail-badge avail-rac">RAC N</span> &nbsp;Reservation Against Cancellation</span>
+                    <span><span class="avail-badge avail-wl">WL N</span> &nbsp;Waiting List</span>
+                    <span><span class="avail-badge avail-regret">REGRET</span> &nbsp;Fully Booked</span>
+                </div>
+
+                <!-- Results Count -->
+                <div th:if="${trains != null and #lists.size(trains) > 0}">
+                    <h6 class="text-irctc mb-3">
+                        <i class="fas fa-train me-1"></i>
+                        <span th:text="${#lists.size(trains)}">0</span> Train(s) Found
+                        <span class="text-muted fw-normal" th:if="${source != null and destination != null}">
+                            — <span th:text="${source}"></span> → <span th:text="${destination}"></span>
+                        </span>
+                    </h6>
+
+                    <!-- Train Cards -->
+                    <div th:each="dto : ${trains}" class="train-card">
+                        <!-- Train Header Row -->
+                        <div class="train-header">
+                            <div class="row align-items-center">
+                                <!-- Train name & number -->
+                                <div class="col-md-3">
+                                    <div class="fw-bold text-irctc" th:text="${dto.train.trainNo}">12951</div>
+                                    <div class="fw-bold" style="font-size:13px" th:text="${dto.train.trainName}">Rajdhani Express</div>
+                                    <div class="mt-1">
+                                        <!-- Running days -->
+                                        <th:block th:each="day : ${ {'M','T','W','T','F','S','S'} }">
+                                            <span th:classappend="${dto.train.runningDays != null and #arrays.contains(dto.train.runningDays, day == 'M' ? 'MONDAY' : (day == 'T' ? 'TUESDAY' : (day == 'W' ? 'WEDNESDAY' : (day == 'T' ? 'THURSDAY' : (day == 'F' ? 'FRIDAY' : (day == 'S' ? 'SATURDAY' : 'SUNDAY'))))))} ? 'day-dot day-active' : 'day-dot day-inactive'" th:text="${day}">M</span>
+                                        </th:block>
+                                    </div>
+                                </div>
+                                <!-- Departure / Arrival -->
+                                <div class="col-md-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="text-center">
+                                            <div class="fw-bold fs-5" th:text="${dto.departureTimeAtSource != null ? dto.departureTimeAtSource : dto.train.departureTime}">06:00</div>
+                                            <div style="font-size:11px" class="text-muted fw-bold" th:text="${dto.sourceStationCode != null ? dto.sourceStationCode : dto.train.sourceStation?.stationCode}">NDLS</div>
+                                        </div>
+                                        <div class="text-center text-muted" style="font-size:11px">
+                                            <i class="fas fa-long-arrow-alt-right"></i><br>
+                                            <span class="badge bg-light text-dark border px-1" style="font-size:10px" th:if="${dto.distanceKm != null and dto.distanceKm > 0}">
+                                                <span th:text="${dto.distanceKm}">570</span> km
+                                            </span>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="fw-bold fs-5" th:text="${dto.arrivalTimeAtDestination != null ? dto.arrivalTimeAtDestination : dto.train.arrivalTime}">09:55</div>
+                                            <div style="font-size:11px" class="text-muted fw-bold" th:text="${dto.destinationStationCode != null ? dto.destinationStationCode : dto.train.destinationStation?.stationCode}">BCT</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Total seats info -->
+                                <div class="col-md-3">
+                                    <div class="text-muted small">Total Capacity</div>
+                                    <div class="fw-bold" th:text="${dto.train.totalSeats} + ' seats'">500 seats</div>
+                                    <div class="small text-muted mt-1">
+                                        <span th:text="${#lists.size(dto.train.classes ?: {})}">6</span> classes available
+                                    </div>
+                                </div>
+                                <!-- Route info -->
+                                <div class="col-md-3 text-end">
+                                    <a href="#" class="btn btn-outline-secondary btn-sm view-route-btn"
+                                       th:data-trainno="${dto.train.trainNo}">
+                                       <i class="fas fa-route"></i> View Route
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Availability Grid (per class) -->
+                        <div class="train-availability">
+                            <div class="row g-0" th:if="${dto.classAvailMap != null and !dto.classAvailMap.isEmpty()}">
+                                <div class="avail-cell col" th:each="entry : ${dto.classAvailMap}">
+                                    <div class="avail-class-label" th:text="${entry.key.name()}">SL</div>
+                                    <div>
+                                        <span class="avail-badge"
+                                              th:classappend="${entry.value.badgeClass}"
+                                              th:text="${entry.value.availabilityLabel}">AVAILABLE-10</span>
+                                    </div>
+                                    <div class="mt-1" style="font-size:11px; color:#1a6e32; font-weight:700">
+                                        ₹<span th:text="${dto.classFares != null and dto.classFares[entry.key] != null ? dto.classFares[entry.key] : (dto.train.fareStructure != null and dto.train.fareStructure[entry.key.name()] != null ? dto.train.fareStructure[entry.key.name()] : '—')}">250</span>
+                                    </div>
+                                    <a th:if="${!entry.value.fullyBooked}"
+                                       th:href="@{/passenger/book/{trainNo}(trainNo=${dto.train.trainNo},date=${date},classType=${entry.key.name()},source=${dto.sourceStationCode ?: source},destination=${dto.destinationStationCode ?: destination})}"
+                                       class="btn-book-class mt-1">Book</a>
+                                    <button th:if="${entry.value.fullyBooked}" class="btn-book-class mt-1" disabled>Sold Out</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No Results -->
+                <div th:if="${trains != null and #lists.isEmpty(trains)}" class="card border-0 shadow-sm mt-2">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-train text-muted" style="font-size:3rem;opacity:.3"></i>
+                        <h5 class="mt-3 text-dark">No Trains Found</h5>
+                        <p class="text-muted">No direct trains found for this route and date. Try a different date or route.</p>
+                    </div>
+                </div>
+
+                <!-- Initial state (before search) -->
+                <div th:if="${trains == null}" class="card border-0 shadow-sm mt-2">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-search text-muted" style="font-size:3rem;opacity:.3"></i>
+                        <h5 class="mt-3 text-dark">Search for Trains</h5>
+                        <p class="text-muted">Enter your origin, destination and date above to see real-time availability.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-irctc text-white">
+                    <h5 class="modal-title"><i class="fas fa-route me-2"></i> Train Route / Schedule</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th><th>Station Name</th><th>Code</th><th>Arrives</th><th>Departs</th><th>Dist (km)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ── Station autocomplete ──────────────────────────────────────────────
+        function setupAutocomplete(inputId, hiddenId, resultsId) {
+            const input = document.getElementById(inputId);
+            const hidden = document.getElementById(hiddenId);
+            const resultsBox = document.getElementById(resultsId);
+
+            if (hidden.value) { input.value = hidden.value; }
+
+            input.addEventListener('input', function() {
+                const query = this.value.trim();
+                if (!query) { resultsBox.style.display = 'none'; hidden.value = ''; return; }
+
+                fetch(`/api/stations/search?query=${encodeURIComponent(query)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        resultsBox.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(st => {
+                                const a = document.createElement('a');
+                                a.href = '#';
+                                a.className = 'list-group-item list-group-item-action text-dark py-2';
+                                a.innerHTML = `<strong>${st.stationCode}</strong> — ${st.stationName}`;
+                                a.onclick = e => {
+                                    e.preventDefault();
+                                    input.value = `${st.stationCode} — ${st.stationName}`;
+                                    hidden.value = st.stationCode;
+                                    resultsBox.style.display = 'none';
+                                };
+                                resultsBox.appendChild(a);
+                            });
+                            resultsBox.style.display = 'block';
+                        } else {
+                            resultsBox.style.display = 'none';
+                        }
+                    });
+            });
+
+            document.addEventListener('click', e => {
+                if (!input.contains(e.target) && !resultsBox.contains(e.target)) {
+                    resultsBox.style.display = 'none';
+                }
+            });
+        }
+
+        setupAutocomplete('source-search', 'source-code', 'source-results');
+        setupAutocomplete('dest-search', 'dest-code', 'dest-results');
+
+        // ── Swap button ───────────────────────────────────────────────────────
+        document.getElementById('swap-btn').addEventListener('click', function() {
+            const srcInput  = document.getElementById('source-search');
+            const srcHidden = document.getElementById('source-code');
+            const dstInput  = document.getElementById('dest-search');
+            const dstHidden = document.getElementById('dest-code');
+            [srcInput.value, dstInput.value] = [dstInput.value, srcInput.value];
+            [srcHidden.value, dstHidden.value] = [dstHidden.value, srcHidden.value];
+        });
+
+        // ── Schedule modal ────────────────────────────────────────────────────
+        function showSchedule(trainNo) {
+            const tbody = document.getElementById('scheduleTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+            new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+
+            fetch(`/api/trains/${trainNo}/schedule`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || !data.length) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No route data available.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = data.map(s => `
+                        <tr>
+                            <td>${s.stopOrder}</td>
+                            <td><strong>${s.stationName}</strong></td>
+                            <td><span class="badge bg-secondary">${s.stationCode}</span></td>
+                            <td>${s.arrivalTime || '—'}</td>
+                            <td>${s.departureTime || '—'}</td>
+                            <td>${s.distanceInKm != null ? s.distanceInKm + ' km' : '—'}</td>
+                        </tr>`).join('');
+                })
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load schedule.</td></tr>';
+                });
+        }
+
+        document.addEventListener('click', e => {
+            const btn = e.target.closest('.view-route-btn');
+            if (btn) { e.preventDefault(); showSchedule(btn.dataset.trainno); }
+        });
+    </script>
+</body>
+</html>

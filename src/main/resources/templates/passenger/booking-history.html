@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Booking History - IRCTC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --irctc-blue: #213d77;
+            --irctc-orange: #fb792b;
+            --irctc-light-bg: #f0f3f6;
+        }
+
+        body {
+            background-color: var(--irctc-light-bg);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .bg-irctc {
+            background-color: var(--irctc-blue) !important;
+            color: white !important;
+        }
+
+        .btn-irctc {
+            background-color: var(--irctc-orange);
+            color: white;
+            font-weight: bold;
+            border: none;
+        }
+
+        .btn-irctc:hover {
+            background-color: #e56a20;
+            color: white;
+        }
+
+        .text-irctc {
+            color: var(--irctc-blue) !important;
+        }
+
+        .card-header-irctc {
+            background-color: var(--irctc-blue);
+            color: white;
+        }
+
+        .list-group-item.active {
+            background-color: var(--irctc-blue) !important;
+            border-color: var(--irctc-blue) !important;
+        }
+
+        .irctc-logo {
+            font-weight: 800;
+            letter-spacing: 1px;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-irctc shadow-sm">
+        <div class="container">
+            <a class="navbar-brand irctc-logo" href="/">
+                <i class="fas fa-train"></i> IRCTC NGeT
+            </a>
+            <div class="ms-auto">
+                <a href="/auth/logout" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="list-group shadow-sm">
+                    <a href="/passenger/dashboard" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                    <a href="/passenger/search" class="list-group-item list-group-item-action">
+                        <i class="fas fa-search me-2"></i> Book Ticket
+                    </a>
+                    <a href="/passenger/pnr-status" class="list-group-item list-group-item-action">
+                        <i class="fas fa-qrcode me-2"></i> PNR Status
+                    </a>
+                    <a href="/passenger/live-status" class="list-group-item list-group-item-action">
+                        <i class="fas fa-broadcast-tower me-2"></i> Live Train Status
+                    </a>
+                    <a href="/passenger/booking-history" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-history me-2"></i> Booking History
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-irctc text-white">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i> Your Booking History</h5>
+                    </div>
+                    <div class="card-body bg-white p-4">
+                        <div th:if="${message}" class="alert alert-success border-0 shadow-sm">
+                            <i class="fas fa-check-circle me-1"></i> <strong th:text="${message}"></strong>
+                        </div>
+                        <div th:if="${error}" class="alert alert-danger border-0 shadow-sm">
+                            <i class="fas fa-exclamation-triangle me-1"></i> <strong th:text="${error}"></strong>
+                        </div>
+                        <div th:if="${tickets == null or tickets.isEmpty()}">
+                            <div class="card shadow-sm border-0 mt-2">
+                                <div class="card-body text-center py-5">
+                                    <i class="fas fa-folder-open text-muted" style="font-size: 3rem;"></i>
+                                    <h5 class="mt-3 text-dark">No Bookings Found</h5>
+                                    <p class="text-muted">You haven't booked any tickets yet.</p>
+                                    <a href="/passenger/search" class="btn btn-irctc px-4 rounded-pill">Book your first
+                                        ticket now!</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div th:if="${tickets != null and not tickets.isEmpty()}">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>PNR</th>
+                                            <th>Train</th>
+                                            <th>Journey Date</th>
+                                            <th>Passengers</th>
+                                            <th>Fare</th>
+                                            <th>Status</th>
+                                            <th class="text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="ticket : ${tickets}">
+                                            <td>
+                                                <strong class="text-irctc" th:text="${ticket.pnr}"></strong>
+                                                <div th:if="${ticket.hasFoodOrder()}" class="mt-1">
+                                                    <span class="badge"
+                                                        style="background:#e65100; color:white; font-size:10px;">
+                                                        <i class="fas fa-utensils me-1"></i>Meal Voucher
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="fw-bold" th:text="${ticket.train.trainName}"></span><br>
+                                                <small class="text-muted" th:text="${ticket.train.trainNo}"></small>
+                                            </td>
+                                            <td class="fw-bold" th:text="${ticket.journeyDate}"></td>
+                                            <td class="text-center"><span class="badge bg-secondary rounded-pill"
+                                                    th:text="${ticket.allPassengers.size()}"></span></td>
+                                            <td class="fw-bold text-success">₹<span
+                                                    th:text="${ticket.totalFare}"></span></td>
+                                            <td>
+                                                <span th:if="${ticket.status.name() == 'CONFIRMED'}"
+                                                    class="badge bg-success" th:text="${ticket.status}"></span>
+                                                <span th:if="${ticket.status.name() == 'CANCELLED'}"
+                                                    class="badge bg-danger" th:text="${ticket.status}"></span>
+                                                <span th:if="${ticket.status.name() == 'RAC'}"
+                                                    class="badge bg-warning text-dark"
+                                                    th:text="'RAC ' + ${ticket.racNumber}"></span>
+                                                <span th:if="${ticket.status.name() == 'WAITING'}"
+                                                    class="badge bg-secondary"
+                                                    th:text="'WL ' + ${ticket.waitlistNumber}"></span>
+                                                <div th:if="${ticket.refundStatus != null and ticket.refundStatus.name() != 'NONE'}"
+                                                    class="mt-2">
+                                                    <span class="badge"
+                                                        th:classappend="${ticket.refundStatus.name() == 'APPROVED' ? 'bg-success' : (ticket.refundStatus.name() == 'REJECTED' ? 'bg-danger' : 'bg-info')}"
+                                                        th:text="${ticket.refundStatus.displayName}"></span>
+                                                </div>
+                                            </td>
+                                            <td class="text-end text-nowrap">
+                                                <form th:if="${ticket.canBeCancelled()}" method="post"
+                                                    th:action="@{/passenger/cancel/{pnr}(pnr=${ticket.pnr})}"
+                                                    style="display:inline">
+                                                    <button type="submit"
+                                                        class="btn btn-outline-danger btn-sm rounded-pill mb-1"
+                                                        onclick="return confirm('Are you sure you want to cancel this ticket? Any eligible refund will be credited instantly to your IRCTC eWallet.')">
+                                                        <i class="fas fa-times me-1"></i> Cancel
+                                                    </button>
+                                                </form>
+                                                <form
+                                                    th:if="${ticket.status.name() == 'CANCELLED' and ticket.refundStatus.name() == 'NONE'}"
+                                                    method="post"
+                                                    th:action="@{/passenger/refund-request/{pnr}(pnr=${ticket.pnr})}"
+                                                    style="display:inline;">
+                                                    <button type="submit"
+                                                        class="btn btn-outline-warning btn-sm rounded-pill mb-1">
+                                                        <i class="fas fa-money-bill-wave me-1"></i> Refund Request
+                                                    </button>
+                                                </form>
+                                                <a th:href="@{/passenger/pnr-status(pnr=${ticket.pnr})}"
+                                                    class="btn btn-outline-info btn-sm rounded-pill mb-1">
+                                                    <i class="fas fa-eye"></i> PNR
+                                                </a>
+                                                <a th:href="@{/passenger/ticket/download/{pnr}(pnr=${ticket.pnr})}"
+                                                    class="btn btn-outline-success btn-sm rounded-pill mb-1">
+                                                    <i class="fas fa-download"></i> PDF
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

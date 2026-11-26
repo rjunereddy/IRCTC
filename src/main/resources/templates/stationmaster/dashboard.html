@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Station Master Console - Indian Railways</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .station-board-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+        .led-screen { background: #000000; border: 2px solid #334155; border-radius: 8px; font-family: 'Courier New', monospace; }
+        .table-led { color: #fef08a; }
+        .table-led thead th { color: #38bdf8; border-bottom: 2px solid #334155; }
+        .badge-ontime { background: #166534; color: #bbf7d0; font-weight: bold; }
+        .badge-delay { background: #991b1b; color: #fecaca; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow border-bottom border-secondary">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold text-warning" href="/station-master/dashboard">
+                <i class="fas fa-broadcast-tower me-2"></i>STATION MASTER CONSOLE & LIVE ARRIVAL/DEPARTURE BOARD
+            </a>
+            <div class="ms-auto d-flex align-items-center gap-3">
+                <span class="text-muted small">Station Master: <strong class="text-white" th:text="${smName}">SM Staff</strong></span>
+                <a href="/auth/logout" class="btn btn-outline-danger btn-sm rounded-pill"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4 px-4">
+        <!-- Station Selector & Info Strip -->
+        <div class="station-board-card p-4 mb-4 shadow">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-3 bg-danger rounded-circle text-white fs-3">
+                        <i class="fas fa-train"></i>
+                    </div>
+                    <div>
+                        <h2 class="fw-bold mb-0 text-white" th:text="${currentStation != null ? currentStation.stationName : 'Kalaburagi'}">Kalaburagi</h2>
+                        <div class="text-warning fw-bold fs-5" th:text="${currentStation != null ? currentStation.stationCode : 'KLBG'}">KLBG</div>
+                        <span class="badge bg-primary me-2" th:text="${currentStation != null && currentStation.platformCount != null ? currentStation.platformCount : 4} + ' Platforms'">4 Platforms</span>
+                        <span th:if="${currentStation != null && currentStation.isMajorStation()}" class="badge bg-success"><i class="fas fa-code-branch me-1"></i>Major Railway Junction</span>
+                    </div>
+                </div>
+
+                <!-- Station Switcher Dropdown -->
+                <form method="get" action="/station-master/dashboard" class="d-flex align-items-center gap-2">
+                    <label class="text-muted small fw-bold text-nowrap"><i class="fas fa-exchange-alt me-1"></i>Switch Station:</label>
+                    <select name="stationCode" class="form-select bg-dark text-white border-secondary" onchange="this.form.submit()">
+                        <option th:each="st : ${allStations}"
+                                th:value="${st.stationCode}"
+                                th:text="${st.stationCode} + ' - ' + ${st.stationName} + ' (' + ${st.city} + ')'"
+                                th:selected="${currentStation != null && currentStation.stationCode == st.stationCode}">
+                        </option>
+                    </select>
+                </form>
+            </div>
+        </div>
+
+        <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i><span th:text="${message}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i><span th:text="${error}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <!-- PUBLIC ANNOUNCEMENT SIMULATION BANNER -->
+        <div id="announcementBanner" class="alert alert-warning py-2 mb-4 d-none">
+            <i class="fas fa-bullhorn me-2"></i><strong id="announcementText">Train Announcement</strong>
+        </div>
+
+        <!-- LIVE MOVEMENT DISPLAY BOARD -->
+        <div class="card station-board-card border-0 shadow">
+            <div class="card-header bg-dark d-flex justify-content-between align-items-center py-3 border-secondary">
+                <h5 class="mb-0 text-warning fw-bold">
+                    <i class="fas fa-digital-tachograph me-2"></i>Live Train Movement, Platform Allocation & Delay Controller
+                </h5>
+                <span class="badge bg-secondary" th:text="${stops != null ? stops.size() : 0} + ' Trains Scheduled Today'">0 Trains</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead style="font-size:12px; text-transform:uppercase; color:#94a3b8; background:#0f172a;">
+                            <tr>
+                                <th>Train No & Name</th>
+                                <th>Route Origin ➔ Terminus</th>
+                                <th>Scheduled Arrival</th>
+                                <th>Scheduled Departure</th>
+                                <th>Halt</th>
+                                <th>Current Platform</th>
+                                <th>Status / Delay</th>
+                                <th>Station Master Controls</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="stop : ${stops}">
+                                <td>
+                                    <span class="badge bg-danger fw-bold" th:text="${stop.train.trainNo}">12701</span>
+                                    <strong class="text-white d-block" th:text="${stop.train.trainName}">Hussain Sagar Express</strong>
+                                </td>
+                                <td>
+                                    <span class="text-info" th:text="${stop.train.sourceStation.stationCode} + ' ➔ ' + ${stop.train.destinationStation.stationCode}">KLBG ➔ HYB</span>
+                                </td>
+                                <td class="fw-bold" th:text="${stop.arrivalTime != null ? stop.arrivalTime : 'Originates'}">08:00</td>
+                                <td class="fw-bold" th:text="${stop.departureTime != null ? stop.departureTime : 'Terminates'}">08:15</td>
+                                <td>
+                                    <span th:if="${stop.haltMinutes > 0}" class="badge bg-warning text-dark" th:text="${stop.haltMinutes} + ' mins'">10 mins</span>
+                                    <span th:unless="${stop.haltMinutes > 0}" class="text-muted">-</span>
+                                </td>
+                                <td>
+                                    <!-- Inline Platform Assignment -->
+                                    <form method="post" action="/station-master/update-platform" class="d-flex align-items-center gap-1">
+                                        <input type="hidden" name="stopId" th:value="${stop.id}">
+                                        <input type="hidden" name="stationCode" th:value="${currentStation.stationCode}">
+                                        <select name="platformNumber" class="form-select form-select-sm bg-dark text-warning border-secondary" style="width: auto;">
+                                            <option th:each="p : ${#numbers.sequence(1, currentStation != null && currentStation.platformCount != null ? currentStation.platformCount : 6)}"
+                                                    th:value="${p}"
+                                                    th:text="'Platform ' + ${p}"
+                                                    th:selected="${stop.platformNumber == ('' + p)}">
+                                            </option>
+                                        </select>
+                                        <button type="submit" class="btn btn-outline-warning btn-sm" title="Save Platform">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <span th:if="${stop.delayMinutes != null && stop.delayMinutes > 0}" class="badge badge-delay">
+                                        <i class="fas fa-clock me-1"></i>Delayed by <span th:text="${stop.delayMinutes}">15</span>m
+                                    </span>
+                                    <span th:unless="${stop.delayMinutes != null && stop.delayMinutes > 0}" class="badge badge-ontime">
+                                        <i class="fas fa-check-circle me-1"></i>On Time
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1 flex-wrap">
+                                        <!-- Delay Quick Actions -->
+                                        <form method="post" action="/station-master/update-delay" style="display:inline">
+                                            <input type="hidden" name="stopId" th:value="${stop.id}">
+                                            <input type="hidden" name="stationCode" th:value="${currentStation.stationCode}">
+                                            <input type="hidden" name="delayMinutes" value="15">
+                                            <button type="submit" class="btn btn-outline-warning btn-sm py-0 px-2" title="+15 mins delay">+15m</button>
+                                        </form>
+                                        <form method="post" action="/station-master/update-delay" style="display:inline">
+                                            <input type="hidden" name="stopId" th:value="${stop.id}">
+                                            <input type="hidden" name="stationCode" th:value="${currentStation.stationCode}">
+                                            <input type="hidden" name="delayMinutes" value="0">
+                                            <button type="submit" class="btn btn-outline-success btn-sm py-0 px-2" title="Reset to On Time">On-Time</button>
+                                        </form>
+                                        <!-- Announcement Trigger -->
+                                        <button type="button" class="btn btn-outline-info btn-sm py-0 px-2"
+                                                th:data-no="${stop.train.trainNo}"
+                                                th:data-name="${stop.train.trainName}"
+                                                th:data-platform="${stop.platformNumber}"
+                                                onclick="announceFromBtn(this)"
+                                                title="Make Public Announcement">
+                                            <i class="fas fa-bullhorn"></i>
+                                        </button>
+                                        <!-- Prepare Chart -->
+                                        <form method="post" action="/station-master/prepare-chart" style="display:inline">
+                                            <input type="hidden" name="trainNo" th:value="${stop.train.trainNo}">
+                                            <input type="hidden" name="stationCode" th:value="${currentStation.stationCode}">
+                                            <button type="submit" class="btn btn-outline-light btn-sm py-0 px-2" title="Prepare & Freeze Reservation Chart">
+                                                <i class="fas fa-clipboard-check"></i> Chart
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${stops == null or stops.isEmpty()}">
+                                <td colspan="8" class="text-center text-muted py-5">
+                                    <i class="fas fa-train mb-2 fs-3"></i>
+                                    <p class="mb-0">No train stops registered at this station currently.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function announceFromBtn(btn) {
+            const no = btn.getAttribute('data-no');
+            const name = btn.getAttribute('data-name');
+            const platform = btn.getAttribute('data-platform') || '1';
+            announceTrain(no, name, platform);
+        }
+
+        function announceTrain(no, name, platform) {
+            const text = `Attention passengers: Train Number ${no}, ${name}, is scheduled to arrive on Platform Number ${platform || 1}.`;
+            const banner = document.getElementById('announcementBanner');
+            const announcementText = document.getElementById('announcementText');
+            announcementText.innerText = text;
+            banner.classList.remove('d-none');
+
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-IN';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+    </script>
+</body>
+</html>
